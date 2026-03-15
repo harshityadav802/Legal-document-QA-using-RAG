@@ -35,7 +35,7 @@ def embed_query(text: str) -> List[float]:
     embedder = get_embedder()
 
     return embedder.embed_query(text)
-def embed_texts(texts: List[str], model_name: str = _DEFAULT_MODEL) -> List[List[float]]:
+def embed_texts(texts: List[str], model_name: str = DEFAULT_MODEL) -> List[List[float]]:
     """Embed a list of texts and return their dense vectors."""
     embedder = get_embedder(model_name)
     return embedder.embed_documents(texts)
