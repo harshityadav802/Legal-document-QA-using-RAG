@@ -1,23 +1,23 @@
-# ⚖️ Legal Document QA using RAG
+#  Legal Document QA using RAG
 
 A **production-ready, bilingual (Hindi + English) Legal Document Question & Answer** system built with Retrieval-Augmented Generation (RAG).  
 **No paid API required** — uses [Ollama](https://ollama.com/) (Mistral / LLaMA3) for the LLM and HuggingFace `BAAI/bge-large-en-v1.5` for embeddings.
 
 ---
 
-## ✨ Key Features
+##  Key Features
 
 | Feature | Description |
 |---------|-------------|
-| 🆓 **100% Free** | Ollama (local LLM) + HuggingFace embeddings — zero API costs |
-| 🌐 **Bilingual** | Every answer in **English** + **simple Hindi** (everyday language for common people) |
-| 📄 **Smart Segmentation** | 5-stage legal segmentation pipeline with hierarchy-aware chunking |
-| 🔍 **Hybrid Retrieval** | BM25 + FAISS with Reciprocal Rank Fusion for best-of-both retrieval |
-| 🏗️ **Production-ready** | Clean pipeline architecture, Streamlit UI, tests |
+|  **100% Free** | Ollama (local LLM) + HuggingFace embeddings — zero API costs |
+|  **Bilingual** | Every answer in **English** + **simple Hindi** (everyday language for common people) |
+|  **Smart Segmentation** | 5-stage legal segmentation pipeline with hierarchy-aware chunking |
+|  **Hybrid Retrieval** | BM25 + FAISS with Reciprocal Rank Fusion for best-of-both retrieval |
+|  **Production-ready** | Clean pipeline architecture, Streamlit UI, tests |
 
 ---
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### Prerequisites
 
@@ -57,7 +57,7 @@ Then open `http://localhost:8501` in your browser.
 
 ---
 
-## 🏗️ Architecture
+##  Architecture
 
 ```
 Legal-document-QA-using-RAG/
@@ -94,7 +94,7 @@ Legal-document-QA-using-RAG/
 
 ---
 
-## 📋 5-Stage Segmentation Pipeline
+##  5-Stage Segmentation Pipeline
 
 The core of the system is the `legal_segmenter.py` which processes legal documents in 5 stages:
 
@@ -124,7 +124,7 @@ Every chunk gets a metadata header:
 
 ---
 
-## 🌐 Bilingual Answering
+##  Bilingual Answering
 
 Every answer is provided in **both English and simple Hindi**:
 
@@ -136,7 +136,7 @@ Hindi is in **everyday language** — not legal Hindi — so it's understandable
 
 ---
 
-## 🔧 Configuration
+##  Configuration
 
 Copy `.env.example` to `.env` and adjust as needed:
 
@@ -149,7 +149,7 @@ VECTORSTORE_PATH=data/vectorstore
 
 ---
 
-## 🧪 Running Tests
+##  Running Tests
 
 ```bash
 # Install test dependencies
@@ -166,7 +166,7 @@ Tests do **not** require Ollama or internet access — all LLM calls are mocked.
 
 ---
 
-## 📓 Demo Notebook
+##  Demo Notebook
 
 Open `notebooks/demo.ipynb` for a step-by-step walkthrough of the entire pipeline.
 
@@ -176,7 +176,7 @@ jupyter notebook notebooks/demo.ipynb
 
 ---
 
-## 🛠️ Programmatic Usage
+##  Programmatic Usage
 
 ### Ingest a document
 
@@ -206,7 +206,7 @@ print(answer["hindi"])
 
 ---
 
-## 📦 Dependencies
+##  Dependencies
 
 | Package | Purpose |
 |---------|---------|
