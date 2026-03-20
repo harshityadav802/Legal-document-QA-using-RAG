@@ -221,6 +221,6 @@ print(answer["hindi"])
 
 ---
 
-## 📝 License
+##  License
 
 MIT License — see [LICENSE](LICENSE) for details.
