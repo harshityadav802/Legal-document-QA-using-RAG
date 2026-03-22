@@ -9,211 +9,169 @@ import streamlit as st
 from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-
 load_dotenv()
 
 from src.ingestion import ingest_document
 from src.pipeline.query import QueryPipeline
 
 
-def _show_answer(answer: dict):
-    if "error" in answer:
-        st.error(answer["error"])
-        return
-
-    if "english" in answer and answer["english"]:
-        st.markdown("**English Answer**")
-        st.markdown(
-            f'<div class="english-answer">{answer["english"]}</div>',
-            unsafe_allow_html=True,
-        )
-
-    if "hindi" in answer and answer["hindi"]:
-        st.markdown("**Hindi Answer**")
-        st.markdown(
-            f'<div class="hindi-answer">{answer["hindi"]}</div>',
-            unsafe_allow_html=True,
-        )
-
-    if "sources" in answer and answer["sources"]:
-        with st.expander("Sources and Context"):
-            for src in answer["sources"]:
-                st.markdown(
-                    f'<div class="source-card">'
-                    f'<b>{src.get("document_name","")}</b> '
-                    f'{src.get("breadcrumb","")} '
-                    f'[{src.get("section_type","")}]<br/>'
-                    f'<i>{src.get("snippet","")[:300]}...</i>'
-                    f"</div>",
-                    unsafe_allow_html=True,
-                )
-
-
 st.set_page_config(
-    page_title="Legal Document QA",
+    page_title="LegalMind RAG",
+    page_icon="⚖️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-st.markdown(
-    """
+st.markdown("""
 <style>
-.hindi-answer {
-    background-color: #FFF8E1;
-    border-left: 4px solid #FFC107;
-    padding: 12px 16px;
-    border-radius: 4px;
-    font-size: 16px;
-    line-height: 1.8;
-}
-.english-answer {
-    background-color: #E3F2FD;
-    border-left: 4px solid #2196F3;
-    padding: 12px 16px;
-    border-radius: 4px;
-    font-size: 16px;
-    line-height: 1.8;
-}
-.source-card {
-    background-color: #F5F5F5;
-    border: 1px solid #E0E0E0;
-    padding: 8px 12px;
-    border-radius: 4px;
-    margin: 4px 0;
-    font-size: 13px;
-}
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Outfit:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
+.stApp { background-color: #0D0F14; color: #E8E4DC; }
+section[data-testid="stSidebar"] { background-color: #0A0C10; border-right: 1px solid #1E2128; }
+section[data-testid="stSidebar"] * { color: #A0A4AE; }
+.logo-block { display:flex; align-items:center; gap:12px; padding:8px 0 24px; border-bottom:1px solid #1A1D24; margin-bottom:20px; }
+.logo-icon { width:38px; height:38px; background:linear-gradient(135deg,#C9A84C,#E8C96A); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; }
+.logo-title { font-family:'DM Serif Display',serif; font-size:20px; color:#E8E4DC; letter-spacing:0.02em; line-height:1.1; }
+.logo-sub { font-size:10px; color:#3A3E4A; letter-spacing:0.1em; text-transform:uppercase; font-family:'DM Mono',monospace; }
+.page-header { font-family:'DM Serif Display',serif; font-size:28px; color:#E8E4DC; letter-spacing:0.01em; margin-bottom:4px; }
+.page-sub { font-size:13px; color:#3A3E4A; margin-bottom:24px; letter-spacing:0.02em; }
+.status-bar { display:flex; align-items:center; gap:8px; background:#0F1A12; border:1px solid #1A3A1E; border-radius:20px; padding:6px 14px; font-size:12px; color:#4A9E5C; width:fit-content; margin-bottom:28px; font-family:'DM Mono',monospace; }
+.status-dot { width:7px; height:7px; border-radius:50%; background:#4A9E5C; }
+.english-answer { background:#0D1520; border-left:3px solid #2B5BA0; border-radius:0 10px 10px 0; padding:14px 18px; margin-bottom:10px; font-size:15px; color:#A8C4E0; line-height:1.8; }
+.english-answer-label { font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:#4A7AB5; margin-bottom:8px; font-weight:600; font-family:'DM Mono',monospace; }
+.hindi-answer { background:#1A1208; border-left:3px solid #8A6A1A; border-radius:0 10px 10px 0; padding:14px 18px; margin-bottom:10px; font-size:15px; color:#D4B86A; line-height:1.9; }
+.hindi-answer-label { font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:#8A6A1A; margin-bottom:8px; font-weight:600; font-family:'DM Mono',monospace; }
+.source-card { background:#0F1115; border:1px solid #1E2128; border-radius:8px; padding:10px 14px; margin:6px 0; font-size:12px; color:#5A5E6A; border-left:2px solid #C9A84C; }
+.source-name { font-weight:600; color:#A0A4AE; font-size:12px; margin-bottom:4px; }
+.source-section { color:#C9A84C; font-family:'DM Mono',monospace; font-size:11px; }
+.empty-state { text-align:center; padding:60px 20px; opacity:0.4; }
+.empty-icon { font-size:40px; margin-bottom:14px; }
+.empty-text { font-size:14px; color:#5A5E6A; line-height:1.7; }
+.timing-note { font-size:11px; color:#2A2D35; font-family:'DM Mono',monospace; margin-top:8px; }
+.section-divider { border:none; border-top:1px solid #1A1D24; margin:16px 0; }
+div[data-testid="stChatMessage"] { background:transparent !important; }
+.stTextInput input, .stTextArea textarea { background:#161920 !important; border:1px solid #1E2128 !important; color:#A0A4AE !important; border-radius:8px !important; font-family:'Outfit',sans-serif !important; }
+.stButton button { background:#C9A84C !important; color:#0A0C10 !important; border:none !important; border-radius:8px !important; font-weight:600 !important; font-family:'Outfit',sans-serif !important; letter-spacing:0.04em !important; }
+.stButton button:hover { background:#E8C96A !important; }
+.stRadio label { color:#6A6E7A !important; font-size:13px !important; }
+.stExpander { background:#0F1115 !important; border:1px solid #1E2128 !important; border-radius:8px !important; }
 </style>
-""",
-    unsafe_allow_html=True,
-)
+""", unsafe_allow_html=True)
+
+
+def _show_answer(answer: dict):
+    if "error" in answer:
+        st.error(answer["error"])
+        return
+    if "english" in answer and answer["english"]:
+        st.markdown(
+            '<div class="english-answer"><div class="english-answer-label">English</div>'
+            f'{answer["english"]}</div>',
+            unsafe_allow_html=True,
+        )
+    if "hindi" in answer and answer["hindi"]:
+        st.markdown(
+            '<div class="hindi-answer"><div class="hindi-answer-label">Hindi · हिंदी</div>'
+            f'{answer["hindi"]}</div>',
+            unsafe_allow_html=True,
+        )
+    if "sources" in answer and answer["sources"]:
+        with st.expander(f"📎 {len(answer['sources'])} sources"):
+            for src in answer["sources"]:
+                st.markdown(
+                    f'<div class="source-card">'
+                    f'<div class="source-name">📄 {src.get("document_name","Unknown")}</div>'
+                    f'<div class="source-section">{src.get("breadcrumb","")} · {src.get("section_type","")}</div>'
+                    f'<div style="margin-top:6px;font-size:12px;color:#3A3E4A;line-height:1.6;">{src.get("snippet","")[:250]}…</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
 
 
 with st.sidebar:
-    st.title("Legal Document QA")
-
-    uploaded_file = st.file_uploader(
-        "Upload a legal document",
-        type=["txt", "pdf", "docx"],
+    st.markdown(
+        '<div class="logo-block"><div class="logo-icon">⚖️</div>'
+        '<div><div class="logo-title">LegalMind</div>'
+        '<div class="logo-sub">RAG · Powered by Endee</div></div></div>',
+        unsafe_allow_html=True,
     )
-
-    doc_name = st.text_input(
-        "Document name",
-        placeholder="Service Agreement 2024",
-    )
-
-    ingest_button = st.button("Ingest Document", use_container_width=True)
-
-    st.divider()
-
+    st.markdown("**Upload Document**")
+    uploaded_file = st.file_uploader("Upload", type=["txt","pdf","docx"], label_visibility="collapsed")
+    doc_name = st.text_input("Document name (optional)", placeholder="e.g. Service Agreement 2024")
+    ingest_button = st.button("⚡ Ingest Document", use_container_width=True)
+    st.markdown('<hr class="section-divider"/>', unsafe_allow_html=True)
     language = st.radio(
-        "Answer language",
-        options=["both", "english", "hindi"],
-        format_func=lambda x: {
-            "both": "Both (English + Hindi)",
-            "english": "English",
-            "hindi": "Hindi",
-        }[x],
+        "Answer Language",
+        options=["both","english","hindi"],
+        format_func=lambda x: {"both":"🌐 English + Hindi","english":"🇬🇧 English only","hindi":"🇮🇳 Hindi only"}[x],
         index=0,
     )
-
-    num_results = st.slider("Retrieved chunks", 3, 10, 5)
-
-    ollama_model = st.text_input(
-        "Ollama model",
-        value=os.getenv("OLLAMA_MODEL", "mistral"),
-    )
-
-    ollama_url = st.text_input(
-        "Ollama base URL",
-        value=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
-    )
-
-    index_name = st.text_input(
-        "Endee index name",
-        value=os.getenv("ENDEE_INDEX_NAME", "legal_docs"),
-    )
-
-    st.divider()
-
-    if st.button("Clear Chat"):
+    st.markdown('<hr class="section-divider"/>', unsafe_allow_html=True)
+    num_results = st.slider("Retrieved Chunks", 3, 10, 5)
+    st.markdown('<hr class="section-divider"/>', unsafe_allow_html=True)
+    with st.expander("⚙️ Settings"):
+        ollama_model = st.text_input("Ollama model", value=os.getenv("OLLAMA_MODEL","mistral"))
+        ollama_url = st.text_input("Ollama URL", value=os.getenv("OLLAMA_BASE_URL","http://localhost:11434"))
+        index_name = st.text_input("Endee index", value=os.getenv("ENDEE_INDEX_NAME","legal_docs"))
+    st.markdown('<hr class="section-divider"/>', unsafe_allow_html=True)
+    if st.button("🗑️ Clear Chat", use_container_width=True):
         st.session_state["chat_history"] = []
         st.rerun()
 
 
 if "ingested" not in st.session_state:
     st.session_state["ingested"] = False
-
 if "pipeline" not in st.session_state:
     st.session_state["pipeline"] = None
-
 if "chat_history" not in st.session_state:
     st.session_state["chat_history"] = []
+if "index_name" not in st.session_state:
+    st.session_state["index_name"] = os.getenv("ENDEE_INDEX_NAME","legal_docs")
 
 
 if ingest_button:
     if uploaded_file is None:
-        st.sidebar.error("Upload a document first.")
+        st.sidebar.error("Please upload a document first.")
     else:
-        with st.spinner("Ingesting document..."):
+        with st.spinner("Ingesting document into Endee..."):
             try:
                 suffix = Path(uploaded_file.name).suffix
-
                 with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
                     tmp.write(uploaded_file.read())
                     tmp_path = tmp.name
-
                 effective_name = doc_name.strip() if doc_name.strip() else None
-
-                docs = ingest_document(
-                    tmp_path,
-                    document_name=effective_name,
-                    index_name=index_name,
-                    append=True,
-                )
-
+                idx = index_name.strip() if index_name.strip() else "legal_docs"
+                docs = ingest_document(tmp_path, document_name=effective_name, index_name=idx, append=True)
                 os.unlink(tmp_path)
-
                 st.session_state["ingested"] = True
                 st.session_state["pipeline"] = None
                 st.session_state["chat_history"] = []
-
-                st.sidebar.success(f"Ingested {len(docs)} chunks")
-                st.sidebar.write(f"Chunks: {len(docs)}")
-                st.sidebar.write(f"Index: {index_name}")
-
+                st.session_state["index_name"] = idx
+                st.sidebar.success(f"✅ {len(docs)} chunks ingested")
             except Exception as e:
                 st.sidebar.error(f"Ingestion failed: {e}")
 
 
-sample_path = Path(__file__).parent.parent / "data" / "sample_contract.txt"
+st.markdown('<div class="page-header">Legal Document Q&A</div>', unsafe_allow_html=True)
+st.markdown('<div class="page-sub">Ask questions about your legal documents — answers in English and Hindi</div>', unsafe_allow_html=True)
 
-if sample_path.exists():
-    if st.sidebar.button("Load Sample Contract", use_container_width=True):
-        with st.spinner("Ingesting sample..."):
-            try:
-                docs = ingest_document(
-                    str(sample_path),
-                    document_name="Sample Service Agreement",
-                    index_name=index_name,
-                    append=True,
-                )
-                st.session_state["ingested"] = True
-                st.session_state["pipeline"] = None
-                st.session_state["chat_history"] = []
-                st.sidebar.success(f"Loaded sample contract ({len(docs)} chunks)")
-            except Exception as e:
-                st.sidebar.error(f"Failed: {e}")
-
-
-st.title("Legal Document QA")
+if st.session_state["ingested"]:
+    st.markdown(
+        f'<div class="status-bar"><div class="status-dot"></div>Endee · {st.session_state.get("index_name","legal_docs")} · ready</div>',
+        unsafe_allow_html=True,
+    )
 
 if not st.session_state["ingested"]:
-    st.info("Upload a document and ingest it before asking questions.")
+    st.markdown(
+        '<div class="empty-state"><div class="empty-icon">⚖️</div>'
+        '<div class="empty-text">Upload a legal document from the sidebar<br>and click <strong>Ingest Document</strong> to begin.</div></div>',
+        unsafe_allow_html=True,
+    )
 else:
     if st.session_state["pipeline"] is None:
         try:
             st.session_state["pipeline"] = QueryPipeline(
-                index_name=index_name,
+                index_name=st.session_state.get("index_name","legal_docs"),
                 k=num_results,
                 model=ollama_model,
                 base_url=ollama_url,
@@ -227,28 +185,23 @@ else:
             st.write(entry["question"])
         with st.chat_message("assistant"):
             _show_answer(entry["answer"])
+            if "elapsed" in entry:
+                st.markdown(f'<div class="timing-note">⏱ {entry["elapsed"]:.2f}s</div>', unsafe_allow_html=True)
 
-    question = st.chat_input("Ask a question about your document")
+    question = st.chat_input("Ask a question about your document...")
 
     if question:
         with st.chat_message("user"):
             st.write(question)
-
         with st.chat_message("assistant"):
-            with st.spinner("Generating answer..."):
+            with st.spinner("Searching and generating answer..."):
                 try:
                     pipeline: QueryPipeline = st.session_state["pipeline"]
                     start = time.time()
-                    answer = pipeline.query(
-                        question,
-                        language=language,
-                        k=num_results,
-                    )
+                    answer = pipeline.query(question, language=language, k=num_results)
                     elapsed = time.time() - start
                     _show_answer(answer)
-                    st.caption(f"Answer generated in {elapsed:.2f}s")
-                    st.session_state["chat_history"].append(
-                        {"question": question, "answer": answer}
-                    )
+                    st.markdown(f'<div class="timing-note">⏱ {elapsed:.2f}s</div>', unsafe_allow_html=True)
+                    st.session_state["chat_history"].append({"question": question, "answer": answer, "elapsed": elapsed})
                 except Exception as e:
-                    st.error(f"Error generating answer: {e}")
+                    st.error(f"Error: {e}")
