@@ -92,7 +92,7 @@ def _show_answer(answer: dict):
 
 with st.sidebar:
     st.markdown('<div class="app-title">Legal Document QA</div>', unsafe_allow_html=True)
-    st.markdown('<div class="app-sub">Powered by Endee</div>', unsafe_allow_html=True)
+    st.markdown('<div class="app-sub">powered by Endee</div>', unsafe_allow_html=True)
 
     mode = st.radio(
         "Mode",
@@ -105,7 +105,7 @@ with st.sidebar:
 
     if mode == "ingest":
         uploaded_file = st.file_uploader("Document", type=["txt","pdf","docx"])
-        doc_name = st.text_input("Document name (optional)", placeholder="e.g. Service Agreement 2024")
+        doc_name = st.text_input("Document name (optional)", placeholder="e.g. name of the case ")
         ingest_button = st.button("Ingest Document", use_container_width=True)
     else:
         uploaded_file = None
