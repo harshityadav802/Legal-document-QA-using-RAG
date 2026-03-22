@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(Path(__file__).parent.parent))
 load_dotenv()
 
-from src.pipeline.ingestion import ingest_document
+from src.ingestion import ingest_document
 from src.pipeline.query import QueryPipeline
 
 
@@ -95,24 +95,44 @@ with st.sidebar:
         '<div class="logo-sub">RAG · Powered by Endee</div></div></div>',
         unsafe_allow_html=True,
     )
-    st.markdown("**Upload Document**")
-    uploaded_file = st.file_uploader("Upload", type=["txt","pdf","docx"], label_visibility="collapsed")
-    doc_name = st.text_input("Document name (optional)", placeholder="e.g. Service Agreement 2024")
-    ingest_button = st.button("⚡ Ingest Document", use_container_width=True)
+
+    mode = st.radio(
+        "Mode",
+        options=["query", "ingest"],
+        format_func=lambda x: {"query": "💬 Query Existing Index", "ingest": "📥 Upload New Document"}[x],
+        index=0,
+    )
+
     st.markdown('<hr class="section-divider"/>', unsafe_allow_html=True)
+
+    if mode == "ingest":
+        st.markdown("**Upload Document**")
+        uploaded_file = st.file_uploader("Upload", type=["txt","pdf","docx"], label_visibility="collapsed")
+        doc_name = st.text_input("Document name (optional)", placeholder="e.g. Service Agreement 2024")
+        ingest_button = st.button("⚡ Ingest Document", use_container_width=True)
+    else:
+        uploaded_file = None
+        ingest_button = False
+        st.info("Querying documents already stored in Endee index.")
+
+    st.markdown('<hr class="section-divider"/>', unsafe_allow_html=True)
+
     language = st.radio(
         "Answer Language",
         options=["both","english","hindi"],
         format_func=lambda x: {"both":"🌐 English + Hindi","english":"🇬🇧 English only","hindi":"🇮🇳 Hindi only"}[x],
         index=0,
     )
+
     st.markdown('<hr class="section-divider"/>', unsafe_allow_html=True)
     num_results = st.slider("Retrieved Chunks", 3, 10, 5)
     st.markdown('<hr class="section-divider"/>', unsafe_allow_html=True)
+
     with st.expander("⚙️ Settings"):
         ollama_model = st.text_input("Ollama model", value=os.getenv("OLLAMA_MODEL","mistral"))
         ollama_url = st.text_input("Ollama URL", value=os.getenv("OLLAMA_BASE_URL","http://localhost:11434"))
         index_name = st.text_input("Endee index", value=os.getenv("ENDEE_INDEX_NAME","legal_docs"))
+
     st.markdown('<hr class="section-divider"/>', unsafe_allow_html=True)
     if st.button("🗑️ Clear Chat", use_container_width=True):
         st.session_state["chat_history"] = []
@@ -127,6 +147,10 @@ if "chat_history" not in st.session_state:
     st.session_state["chat_history"] = []
 if "index_name" not in st.session_state:
     st.session_state["index_name"] = os.getenv("ENDEE_INDEX_NAME","legal_docs")
+
+
+if mode == "query" and not st.session_state["ingested"]:
+    st.session_state["ingested"] = True
 
 
 if ingest_button:
@@ -156,8 +180,9 @@ st.markdown('<div class="page-header">Legal Document Q&A</div>', unsafe_allow_ht
 st.markdown('<div class="page-sub">Ask questions about your legal documents — answers in English and Hindi</div>', unsafe_allow_html=True)
 
 if st.session_state["ingested"]:
+    idx_display = st.session_state.get("index_name", index_name)
     st.markdown(
-        f'<div class="status-bar"><div class="status-dot"></div>Endee · {st.session_state.get("index_name","legal_docs")} · ready</div>',
+        f'<div class="status-bar"><div class="status-dot"></div>Endee · {idx_display} · ready</div>',
         unsafe_allow_html=True,
     )
 
@@ -170,12 +195,14 @@ if not st.session_state["ingested"]:
 else:
     if st.session_state["pipeline"] is None:
         try:
+            idx = index_name.strip() if index_name.strip() else "legal_docs"
             st.session_state["pipeline"] = QueryPipeline(
-                index_name=st.session_state.get("index_name","legal_docs"),
+                index_name=idx,
                 k=num_results,
                 model=ollama_model,
                 base_url=ollama_url,
             )
+            st.session_state["index_name"] = idx
         except Exception as e:
             st.error(f"Pipeline initialization failed: {e}")
             st.stop()
