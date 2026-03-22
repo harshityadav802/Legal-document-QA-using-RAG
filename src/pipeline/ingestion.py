@@ -4,22 +4,18 @@ from typing import List, Optional
 
 from langchain_core.documents import Document
 
-from src.segmentation.legal_segmenter import LegalChunk, segment_document
+from src.segmentation.legal_segmenter import segment_document
 from src.segmentation.preprocessor import preprocess
 from src.vectorstore.store import build_vectorstore, load_vectorstore, add_to_vectorstore
 
 
 def _read_file(file_path: str) -> str:
     path = Path(file_path)
-
     if not path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
-
     suffix = path.suffix.lower()
-
     if suffix == ".txt":
         return path.read_text(encoding="utf-8")
-
     if suffix == ".pdf":
         try:
             from pypdf import PdfReader
@@ -27,10 +23,7 @@ def _read_file(file_path: str) -> str:
             pages = [page.extract_text() or "" for page in reader.pages]
             return "\n\n".join(pages)
         except ImportError as exc:
-            raise ImportError(
-                "pypdf required. Install with: pip install pypdf"
-            ) from exc
-
+            raise ImportError("pypdf required. Install with: pip install pypdf") from exc
     if suffix in (".docx", ".doc"):
         try:
             import docx
@@ -38,25 +31,20 @@ def _read_file(file_path: str) -> str:
             paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
             return "\n\n".join(paragraphs)
         except ImportError as exc:
-            raise ImportError(
-                "python-docx required. Install with: pip install python-docx"
-            ) from exc
-
+            raise ImportError("python-docx required. Install with: pip install python-docx") from exc
     raise ValueError(f"Unsupported file format: {suffix}")
 
 
-def _chunks_to_documents(chunks: List[LegalChunk]) -> List[Document]:
+def _chunks_to_documents(chunks: list) -> List[Document]:
     docs = []
     for chunk in chunks:
         metadata = {
-            "breadcrumb": chunk.breadcrumb,
-            "section_type": chunk.section_type,
-            "document_name": chunk.document_name,
-            "is_operative": chunk.is_operative,
-            "cross_references": ", ".join(chunk.cross_references),
-            "chunk_index": chunk.chunk_index,
+            "section": chunk.get("section", ""),
+            "document_name": chunk.get("document", ""),
+            "chunk_index": chunk.get("chunk_index", 0),
+            "token_count": chunk.get("token_count", 0),
         }
-        docs.append(Document(page_content=chunk.text, metadata=metadata))
+        docs.append(Document(page_content=chunk.get("text", ""), metadata=metadata))
     return docs
 
 
@@ -67,20 +55,14 @@ def ingest_document(
     append: bool = False,
 ) -> List[Document]:
     effective_index = index_name or os.getenv("ENDEE_INDEX_NAME", "legal_docs")
-
     if document_name is None:
         document_name = Path(file_path).stem.replace("_", " ").title()
-
     raw_text = _read_file(file_path)
-
     cleaned_text, doc_type = preprocess(raw_text)
     print(f"[ingest] Document type: {doc_type}")
-
     chunks = segment_document(cleaned_text, document_name=document_name)
     print(f"[ingest] Created {len(chunks)} chunks")
-
     documents = _chunks_to_documents(chunks)
-
     if append:
         try:
             add_to_vectorstore(documents, index_name=effective_index)
@@ -91,7 +73,6 @@ def ingest_document(
     else:
         build_vectorstore(documents, index_name=effective_index, recreate=True)
         print(f"[ingest] Built index '{effective_index}' with {len(documents)} docs")
-
     return documents
 
 
@@ -100,16 +81,12 @@ def ingest_dataset(
     index_name: Optional[str] = None,
 ):
     dataset = Path(dataset_path)
-
     if not dataset.exists():
         raise FileNotFoundError(f"Dataset folder not found: {dataset_path}")
-
     pdf_files = list(dataset.rglob("*.pdf"))
     print(f"Found {len(pdf_files)} PDF files")
-
     succeeded = 0
     failed = 0
-
     for i, pdf_file in enumerate(pdf_files):
         print(f"\n[{i+1}/{len(pdf_files)}] Processing: {pdf_file.name}")
         try:
@@ -124,5 +101,4 @@ def ingest_dataset(
             print(f"[ingest] Skipping {pdf_file.name}: {str(e)}")
             failed += 1
             continue
-
     print(f"\n[ingest] Done. {succeeded} succeeded, {failed} failed.")
