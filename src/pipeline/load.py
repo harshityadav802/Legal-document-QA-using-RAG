@@ -6,11 +6,10 @@ from langchain_core.documents import Document
 
 from src.segmentation.legal_segmenter import LegalChunk, segment_document
 from src.segmentation.preprocessor import preprocess
-from src.vectorstore.store import build_vectorstore, load_vectorstore
+from src.vectorstore.store import build_vectorstore, load_vectorstore, add_to_vectorstore
 
 
 def _read_file(file_path: str) -> str:
-
     path = Path(file_path)
 
     if not path.exists():
@@ -22,33 +21,23 @@ def _read_file(file_path: str) -> str:
         return path.read_text(encoding="utf-8")
 
     if suffix == ".pdf":
-
         try:
             from pypdf import PdfReader
-
             reader = PdfReader(str(path))
             pages = [page.extract_text() or "" for page in reader.pages]
-
             return "\n\n".join(pages)
-
         except ImportError as exc:
-
             raise ImportError(
                 "pypdf required. Install with: pip install pypdf"
             ) from exc
 
     if suffix in (".docx", ".doc"):
-
         try:
             import docx
-
             doc = docx.Document(str(path))
             paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
-
             return "\n\n".join(paragraphs)
-
         except ImportError as exc:
-
             raise ImportError(
                 "python-docx required. Install with: pip install python-docx"
             ) from exc
@@ -57,11 +46,8 @@ def _read_file(file_path: str) -> str:
 
 
 def _chunks_to_documents(chunks: List[LegalChunk]) -> List[Document]:
-
     docs = []
-
     for chunk in chunks:
-
         metadata = {
             "breadcrumb": chunk.breadcrumb,
             "section_type": chunk.section_type,
@@ -70,27 +56,17 @@ def _chunks_to_documents(chunks: List[LegalChunk]) -> List[Document]:
             "cross_references": ", ".join(chunk.cross_references),
             "chunk_index": chunk.chunk_index,
         }
-
-        docs.append(
-            Document(
-                page_content=chunk.text,
-                metadata=metadata,
-            )
-        )
-
+        docs.append(Document(page_content=chunk.text, metadata=metadata))
     return docs
 
 
 def ingest_document(
     file_path: str,
     document_name: Optional[str] = None,
-    store_path: Optional[str] = None,
+    index_name: Optional[str] = None,
     append: bool = False,
 ) -> List[Document]:
-
-    effective_store_path = store_path or os.getenv(
-        "VECTORSTORE_PATH", "data/vectorstore"
-    )
+    effective_index = index_name or os.getenv("ENDEE_INDEX_NAME", "legal_docs")
 
     if document_name is None:
         document_name = Path(file_path).stem.replace("_", " ").title()
@@ -106,50 +82,47 @@ def ingest_document(
     documents = _chunks_to_documents(chunks)
 
     if append:
-
         try:
-
-            existing = load_vectorstore(effective_store_path)
-
-            existing.add_documents(documents)
-            existing.save_local(effective_store_path)
-
-            print(f"[ingest] Added {len(documents)} documents")
-
+            add_to_vectorstore(documents, index_name=effective_index)
+            print(f"[ingest] Added {len(documents)} documents to '{effective_index}'")
         except FileNotFoundError:
-
-            build_vectorstore(documents, store_path=effective_store_path)
-
-            print(f"[ingest] Created new vector store")
-
+            build_vectorstore(documents, index_name=effective_index)
+            print(f"[ingest] Created new index '{effective_index}'")
     else:
-
-        build_vectorstore(documents, store_path=effective_store_path)
-
-        print(f"[ingest] Built vector store with {len(documents)} docs")
+        build_vectorstore(documents, index_name=effective_index, recreate=True)
+        print(f"[ingest] Built index '{effective_index}' with {len(documents)} docs")
 
     return documents
+
+
 def ingest_dataset(
     dataset_path: str,
-    store_path: Optional[str] = None,
+    index_name: Optional[str] = None,
 ):
-
     dataset = Path(dataset_path)
 
     if not dataset.exists():
         raise FileNotFoundError(f"Dataset folder not found: {dataset_path}")
 
     pdf_files = list(dataset.rglob("*.pdf"))
-
     print(f"Found {len(pdf_files)} PDF files")
 
+    succeeded = 0
+    failed = 0
+
     for i, pdf_file in enumerate(pdf_files):
-
         print(f"\n[{i+1}/{len(pdf_files)}] Processing: {pdf_file.name}")
+        try:
+            ingest_document(
+                file_path=str(pdf_file),
+                document_name=pdf_file.stem,
+                index_name=index_name,
+                append=True,
+            )
+            succeeded += 1
+        except Exception as e:
+            print(f"[ingest] Skipping {pdf_file.name}: {str(e)}")
+            failed += 1
+            continue
 
-        ingest_document(
-            file_path=str(pdf_file),
-            document_name=pdf_file.stem,
-            store_path=store_path,
-            append=True,
-        )
+    print(f"\n[ingest] Done. {succeeded} succeeded, {failed} failed.")
