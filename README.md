@@ -1,226 +1,246 @@
-#  Legal Document QA using RAG
+# Legal Document QA using RAG
 
-A **production-ready, bilingual (Hindi + English) Legal Document Question & Answer** system built with Retrieval-Augmented Generation (RAG).  
-**No paid API required** — uses [Ollama](https://ollama.com/) (Mistral / LLaMA3) for the LLM and HuggingFace `BAAI/bge-large-en-v1.5` for embeddings.
+A bilingual (English + Hindi) Question Answering system for Indian legal documents. Built with Retrieval-Augmented Generation, using Endee as the vector database.
 
----
+Ask questions about Supreme Court judgments, contracts, NDAs, and other legal documents in plain language. Get answers in both English and Hindi.
 
-##  Key Features
-
-| Feature | Description |
-|---------|-------------|
-|  **100% Free** | Ollama (local LLM) + HuggingFace embeddings — zero API costs |
-|  **Bilingual** | Every answer in **English** + **simple Hindi** (everyday language for common people) |
-|  **Smart Segmentation** | 5-stage legal segmentation pipeline with hierarchy-aware chunking |
-|  **Hybrid Retrieval** | BM25 + FAISS with Reciprocal Rank Fusion for best-of-both retrieval |
-|  **Production-ready** | Clean pipeline architecture, Streamlit UI, tests |
+GitHub: https://github.com/harshityadav802/Legal-document-QA-using-RAG
 
 ---
 
-##  Quick Start
+## Problem Statement
 
-### Prerequisites
+India has over 55 million pending court cases. Legal documents are lengthy, complex. And, Finding specific information in a large judgment takes hours. Using Keyword search fails because it does not understand meaning but it only matches words.
 
-1. **Python 3.10+**
-2. **Ollama** installed and running:
-   ```bash
-   # Install Ollama: https://ollama.com/download
-   ollama pull mistral   # or: ollama pull llama3
-   ```
+This system solves that by understanding the semantic content of legal documents and answering questions accurately using only the document content, in both English and simple Hindi.
 
-### Installation
+---
 
-```bash
-# Clone the repo
-git clone https://github.com/harshityadav802/Legal-document-QA-using-RAG.git
-cd Legal-document-QA-using-RAG
+## How Endee is Used
 
-# Install dependencies
-pip install -r requirements.txt
+Endee is the core vector database of this project. It stores dense semantic vectors and sparse BM25 vectors for every document chunk, and performs hybrid search in a single server-side call.
 
-# Copy env file
-cp .env.example .env
+Creating the index:
+```python
+client.create_index(
+    name="legal_docs",
+    dimension=1024,
+    space_type="cosine",
+    precision=Precision.INT8,
+    sparse_model="endee_bm25"
+)
 ```
 
-### Run the Streamlit App
-
-```bash
-streamlit run app/app.py
+Storing document chunks with both dense and sparse vectors:
+```python
+index.upsert([{
+    "id": "judgment_42",
+    "vector": dense_embedding,
+    "sparse_indices": bm25_embedding.indices,
+    "sparse_values": bm25_embedding.values,
+    "meta": {
+        "page_content": chunk_text,
+        "section": "JUDGMENT",
+        "document_name": "Abdul Wahid vs State of Rajasthan"
+    }
+}])
 ```
 
-Then open `http://localhost:8501` in your browser.
+Querying with hybrid search:
+```python
+results = index.query(
+    vector=dense_query_vector,
+    sparse_indices=bm25_query.indices,
+    sparse_values=bm25_query.values,
+    top_k=5
+)
+```
 
-1. Click **"Load Sample Contract"** in the sidebar to try the demo
-2. Or upload your own `.txt` / `.pdf` / `.docx` legal document
-3. Ask any question in English or Hindi
-4. Get answers in both languages
+This replaces the previous setup of FAISS + in-process BM25Okapi + manual Reciprocal Rank Fusion. Endee handles all three in one server-side call.
 
 ---
 
-##  Architecture
+## System Architecture
+
+```
+Legal Document (PDF / DOCX / TXT)
+        |
+        v
+preprocessor.py
+  - Unicode normalisation (preserves Devanagari)
+  - Remove headers, footers, page numbers
+  - Fix broken lines from PDF extraction
+  - Detect document type (Judgment, NDA, MOU, Contract...)
+        |
+        v
+legal_segmenter.py
+  - Detect legal headings (FACTS, JUDGMENT, ORDER, WHEREAS, Article IV...)
+  - Split into token-aware chunks (50-600 tokens)
+  - Merge short chunks, add overlap between adjacent chunks
+        |
+        |---> BGE-large-en-v1.5  -->  dense vector (1024-dim)
+        |---> Endee BM25 model   -->  sparse vector
+                    |
+                    v
+             Endee index (cosine, INT8, hybrid)
+                    |
+                    v
+            User asks a question
+                    |
+        |--->  BGE embed_query()   -->  dense query vector
+        |--->  Endee BM25          -->  sparse query vector
+                    |
+                    v
+        Endee hybrid search (top-5 chunks)
+                    |
+                    v
+        LegalQAChain - Mistral via Ollama
+                    |
+                    v
+        English answer + Hindi answer + Sources
+```
+
+---
+
+## Project Structure
 
 ```
 Legal-document-QA-using-RAG/
-├── src/
-│   ├── segmentation/          ← 5-stage legal document segmentation
-│   │   ├── preprocessor.py    ← Clean raw text (headers/footers, unicode, etc.)
-│   │   ├── legal_segmenter.py ← Core 5-stage pipeline (MOST IMPORTANT)
-│   │   ├── section_classifier.py ← Label section types
-│   │   └── utils.py           ← Token counting, sentence splitting, overlap
-│   ├── embeddings/
-│   │   └── embedder.py        ← BAAI/bge-large-en-v1.5 (free)
-│   ├── vectorstore/
-│   │   └── store.py           ← FAISS build/load
-│   ├── retrieval/
-│   │   └── retriever.py       ← Hybrid BM25 + FAISS with RRF fusion
-│   ├── llm/
-│   │   └── qa_chain.py        ← Ollama-based bilingual QA
-│   ├── translation/
-│   │   └── hindi_translator.py ← Hindi simplification
-│   └── pipeline/
-│       ├── ingest.py          ← Document ingestion pipeline
-│       └── query.py           ← Query pipeline
 ├── app/
-│   └── app.py                 ← Streamlit UI
-├── data/
-│   └── sample_contract.txt    ← Sample service agreement
-├── notebooks/
-│   └── demo.ipynb             ← Step-by-step demo
-└── tests/
-    ├── test_segmentation.py
-    ├── test_retrieval.py
-    └── test_qa_chain.py
+│   └── app.py                    Streamlit web interface
+├── src/
+│   ├── embeddings/
+│   │   └── embedder.py           BGE-large-en-v1.5 singleton embedder
+│   ├── segmentation/
+│   │   ├── preprocessor.py       Text cleaning and document type detection
+│   │   ├── legal_segmenter.py    Legal heading detection and chunking
+│   │   ├── section_classifier.py Section type labeling
+│   │   └── utils.py              Token counting, sentence splitting, overlap
+│   ├── vectorstore/
+│   │   └── store.py              Endee index build, load, add
+│   ├── retrieval/
+│   │   └── retriever.py          EndeeHybridRetriever (dense + BM25)
+│   ├── llm/
+│   │   └── qa_chain.py           LegalQAChain with English and Hindi prompts
+│   ├── pipeline/
+│   │   ├── ingestion.py          Document ingestion pipeline
+│   │   └── query.py              End-to-end query pipeline
+│   └── ingestion.py              Ingest single document or full dataset
+├── ingest_judgments.py           Bulk ingest script for PDF folders
+├── docker-compose.yml            Endee server
+├── requirements.txt
+└── README.md
 ```
 
 ---
 
-##  5-Stage Segmentation Pipeline
+## Setup and Installation
 
-The core of the system is the `legal_segmenter.py` which processes legal documents in 5 stages:
+### Requirements
 
-### Stage 1 — Structure Detection
-Identifies all legal heading patterns (Article, Section, Sub-section, WHEREAS, Schedules, etc.) using regex.
-
-### Stage 2 — Hierarchy Building
-Builds a tree: `Document → Article → Section → Sub-section → Paragraph`  
-Every chunk carries a full breadcrumb: `"Agreement > Article III > Section 3.2"`
-
-### Stage 3 — Semantic Boundary Detection
-- Never splits mid-sentence
-- Keeps definition sentences together (`"X means..."`)
-- Preserves cross-references (`"as defined in Section 5.2"`)
-- Marks operative clauses (`shall`, `must`, `agrees to`)
-
-### Stage 4 — Smart Chunk Sizing
-- Target: **256 tokens** | Maximum: **512 tokens** | Minimum: **50 tokens**
-- **50-token overlap** between consecutive chunks
-- Merges tiny chunks, splits oversized chunks at sentence boundaries
-
-### Stage 5 — Context Header
-Every chunk gets a metadata header:
-```
-[Document: Service Agreement | Section: 3.2 Termination | Type: TERMINATION]
-```
-
----
-
-##  Bilingual Answering
-
-Every answer is provided in **both English and simple Hindi**:
-
-> **English**: "The contract terminates after 30 days' written notice."
->
-> **हिंदी**: "यह अनुबंध 30 दिन पहले लिखित सूचना देने पर समाप्त हो जाएगा। मतलब, अगर कोई भी पक्ष अनुबंध खत्म करना चाहे, तो उसे 30 दिन पहले लिखकर बताना होगा।"
-
-Hindi is in **everyday language** — not legal Hindi — so it's understandable for farmers, shopkeepers, and daily wage workers.
-
----
-
-##  Configuration
-
-Copy `.env.example` to `.env` and adjust as needed:
-
-```env
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=mistral          # or llama3
-EMBEDDING_MODEL=BAAI/bge-large-en-v1.5
-VECTORSTORE_PATH=data/vectorstore
-```
-
----
-
-##  Running Tests
+- Python 3.10+
+- Docker and Docker Compose
+- Ollama with Mistral
 
 ```bash
-# Install test dependencies
-pip install pytest pytest-cov
-
-# Run all tests
-pytest tests/ -v
-
-# With coverage
-pytest tests/ -v --cov=src --cov-report=term-missing
+ollama pull mistral
 ```
 
-Tests do **not** require Ollama or internet access — all LLM calls are mocked.
+### Step 1 — Star and fork Endee
 
----
+Star the official repo: https://github.com/endee-io/endee
 
-##  Demo Notebook
-
-Open `notebooks/demo.ipynb` for a step-by-step walkthrough of the entire pipeline.
+### Step 2 — Clone this repo
 
 ```bash
-jupyter notebook notebooks/demo.ipynb
+git clone https://github.com/harshityadav802/Legal-document-QA-using-RAG.git
+cd Legal-document-QA-using-RAG
 ```
 
----
+### Step 3 — Start Endee server
 
-##  Programmatic Usage
+```bash
+docker compose up -d
+```
 
-### Ingest a document
+Verify it is running at http://localhost:8080
+
+### Step 4 — Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### Step 5 — Ingest documents
+
+Put your PDFs in a folder and run:
+
+```bash
+python ingest_judgments.py
+```
+
+Or ingest a single file:
 
 ```python
-from src.pipeline.ingest import ingest_document
-
-docs = ingest_document(
-    "path/to/contract.pdf",
-    document_name="Service Agreement 2024",
-)
+from src.ingestion import ingest_document
+ingest_document("path/to/file.pdf", index_name="legal_docs", append=True)
 ```
 
-### Query
+### Step 6 — Run the app
 
-```python
-from src.pipeline.query import QueryPipeline
-
-pipeline = QueryPipeline(all_docs=docs)
-
-answer = pipeline.query(
-    "What are the termination conditions?",
-    language="both",   # 'english', 'hindi', or 'both'
-)
-print(answer["english"])
-print(answer["hindi"])
+```bash
+python -m streamlit run app/app.py
 ```
+
+Open http://localhost:8501
+
+Select Query existing index to query already-ingested documents, or Upload new document to add and query a new file.
 
 ---
 
-##  Dependencies
+## Tech Stack
 
-| Package | Purpose |
-|---------|---------|
-| `langchain-community` | LangChain integrations (Ollama, HuggingFace, FAISS) |
-| `sentence-transformers` | BAAI/bge-large-en-v1.5 embeddings |
-| `faiss-cpu` | Dense vector search |
-| `rank-bm25` | Sparse BM25 retrieval |
-| `ollama` | Local LLM inference |
-| `streamlit` | Web UI |
-| `pypdf` | PDF parsing |
-| `python-docx` | Word document parsing |
+| Component | Tool |
+|---|---|
+| Vector database | Endee |
+| Dense embeddings | BAAI/bge-large-en-v1.5 |
+| Sparse embeddings | Endee BM25 (endee-model) |
+| LLM | Mistral via Ollama |
+| Framework | LangChain |
+| UI | Streamlit |
+| PDF parsing | pypdf |
+| DOCX parsing | python-docx |
 
 ---
 
-##  License
+## Supported Document Types
 
-MIT License — see [LICENSE](LICENSE) for details.
+Judgment, NDA, MOU, Service Agreement, Employment Contract, Lease Agreement, Partnership Deed, General Contract
+
+---
+
+## Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| ENDEE_INDEX_NAME | legal_docs | Endee index name |
+| ENDEE_BASE_URL | http://localhost:8080/api/v1 | Endee server URL |
+| ENDEE_AUTH_TOKEN | (empty) | Auth token (optional) |
+| OLLAMA_MODEL | mistral | Ollama model name |
+| OLLAMA_BASE_URL | http://localhost:11434 | Ollama server URL |
+| EMBEDDING_MODEL | BAAI/bge-large-en-v1.5 | Embedding model |
+
+---
+
+## Dataset
+
+Supreme Court of India judgments (1950–2024) from Indian Kanoon.
+
+Dataset: https://www.kaggle.com/datasets/adarshsingh0903/legal-dataset-sc-judgments-india-19502024
+
+The full dataset contains judgments from 1950 to 2025.
+---
+
+## License
+
+MIT License
