@@ -245,7 +245,7 @@ The full dataset contains judgments from 1950 to 2025.
 Watch the system in action — ingesting Supreme Court judgments and answering 
 questions in English and Hindi using Endee hybrid search.
 
-Demo:[![Demo Video](https://img.youtube.com/vi/uLgcHyeKy28/0.jpg)](https://www.youtube.com/watch?v=uLgcHyeKy28
+[![Demo Video](https://img.youtube.com/vi/uLgcHyeKy28/0.jpg)](https://www.youtube.com/watch?v=uLgcHyeKy28)
 ---
 ## License
 
