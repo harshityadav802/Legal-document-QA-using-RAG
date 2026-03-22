@@ -237,8 +237,8 @@ Judgment, NDA, MOU, Service Agreement, Employment Contract, Lease Agreement, Par
 Supreme Court of India judgments (1950–2024) from Indian Kanoon.
 
 Dataset: https://www.kaggle.com/datasets/adarshsingh0903/legal-dataset-sc-judgments-india-19502024
-
 The full dataset contains judgments from 1950 to 2025.
+
 ---
 ## Demo
 
