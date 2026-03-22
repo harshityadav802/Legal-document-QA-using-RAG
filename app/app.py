@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(Path(__file__).parent.parent))
 load_dotenv()
 
-from src.load import ingest_document
+from src.ingestion import ingest_document
 from src.pipeline.query import QueryPipeline
 
 
