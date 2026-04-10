@@ -107,7 +107,8 @@ legal_segmenter.py
 ```
 Legal-document-QA-using-RAG/
 ├── app/
-│   └── app.py                    Streamlit web interface
+│   ├── gradio_app.py             Gradio web interface (recommended)
+│   └── app.py                    Streamlit web interface (legacy)
 ├── src/
 │   ├── embeddings/
 │   │   └── embedder.py           BGE-large-en-v1.5 singleton embedder
@@ -188,6 +189,16 @@ ingest_document("path/to/file.pdf", index_name="legal_docs", append=True)
 
 ### Step 6 — Run the app
 
+**Gradio (recommended):**
+
+```bash
+python app/gradio_app.py
+```
+
+Open http://localhost:7860
+
+**Streamlit (legacy):**
+
 ```bash
 python -m streamlit run app/app.py
 ```
@@ -207,7 +218,7 @@ Select Query existing index to query already-ingested documents, or Upload new d
 | Sparse embeddings | Endee BM25 (endee-model) |
 | LLM | Mistral via Ollama |
 | Framework | LangChain |
-| UI | Streamlit |
+| UI | Gradio (+ Streamlit legacy) |
 | PDF parsing | pypdf |
 | DOCX parsing | python-docx |
 
