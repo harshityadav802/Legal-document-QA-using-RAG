@@ -195,7 +195,7 @@ ingest_document("path/to/file.pdf", index_name="legal_docs", append=True)
 python app/gradio_app.py
 ```
 
-Open http://localhost:7860
+Open http://localhost:7860 in your browser
 
 **Streamlit (legacy):**
 

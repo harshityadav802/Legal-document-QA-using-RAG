@@ -199,9 +199,8 @@ button.lg { font-size: 13px !important; }
 ::-webkit-scrollbar-thumb { background: #333333; border-radius: 3px; }
 """
 
-# ---------------------------------------------------------------------------
-# Session state (module-level dicts keyed by session; Gradio uses gr.State)
-# ---------------------------------------------------------------------------
+# Maximum characters shown per source snippet in the answer display
+_MAX_SNIPPET_LEN = 200
 
 def _format_answer_html(answer: dict) -> str:
     """Convert a QueryPipeline answer dict to styled HTML."""
@@ -224,7 +223,7 @@ def _format_answer_html(answer: dict) -> str:
         for src in answer["sources"]:
             name = src.get("document_name", "Unknown")
             section = src.get("section_type", src.get("breadcrumb", ""))
-            snippet = src.get("snippet", "")[:200]
+            snippet = src.get("snippet", "")[:_MAX_SNIPPET_LEN]
             src_html += (
                 f'<div class="src-card">'
                 f'<div class="src-name">{name}</div>'
@@ -376,7 +375,7 @@ def build_app() -> gr.Blocks:
         # ── Shared state ──────────────────────────────────────────────
         pipeline_state = gr.State({})   # mutable dict holding QueryPipeline instance
         chat_history   = gr.State([])   # list of {question, answer, elapsed}
-        ingested       = gr.State(True) # assume an index may already exist
+        ingested       = gr.State(True) # True = allow querying an existing index without re-ingesting
 
         # ── Header ────────────────────────────────────────────────────
         gr.HTML("""
