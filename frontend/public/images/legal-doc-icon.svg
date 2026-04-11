@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Background circle -->
+  <circle cx="32" cy="32" r="32" fill="#003366"/>
+  <!-- Scale icon -->
+  <g stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Center post -->
+    <line x1="32" y1="18" x2="32" y2="46"/>
+    <!-- Horizontal beam -->
+    <line x1="18" y1="24" x2="46" y2="24"/>
+    <!-- Left pan chain -->
+    <line x1="22" y1="24" x2="18" y2="36"/>
+    <!-- Right pan chain -->
+    <line x1="42" y1="24" x2="46" y2="36"/>
+    <!-- Left pan -->
+    <path d="M14 36 Q18 40 22 36" stroke="white" stroke-width="2.5" fill="none"/>
+    <!-- Right pan -->
+    <path d="M42 36 Q46 40 50 36" stroke="white" stroke-width="2.5" fill="none"/>
+    <!-- Base -->
+    <line x1="26" y1="46" x2="38" y2="46"/>
+  </g>
+  <!-- Gold accent dot -->
+  <circle cx="32" cy="18" r="3" fill="#B8860B"/>
+</svg>
