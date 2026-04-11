@@ -94,7 +94,7 @@ legal_segmenter.py
         Endee hybrid search (top-5 chunks)
                     |
                     v
-        LegalQAChain - Mistral via Ollama
+        LegalQAChain - Qwen 3.5:4b via Ollama
                     |
                     v
         English answer + Hindi answer + Sources
@@ -140,10 +140,10 @@ Legal-document-QA-using-RAG/
 
 - Python 3.10+
 - Docker and Docker Compose
-- Ollama with Mistral
+- Ollama with Qwen 3.5:4b
 
 ```bash
-ollama pull mistral
+ollama pull qwen3.5:4b
 ```
 
 ### Step 1 — Star and fork Endee
@@ -205,7 +205,7 @@ Select Query existing index to query already-ingested documents, or Upload new d
 | Vector database | Endee |
 | Dense embeddings | BAAI/bge-large-en-v1.5 |
 | Sparse embeddings | Endee BM25 (endee-model) |
-| LLM | Mistral via Ollama |
+| LLM | Qwen 3.5:4b via Ollama |
 | Framework | LangChain |
 | UI | Streamlit |
 | PDF parsing | pypdf |
@@ -226,7 +226,7 @@ Judgment, NDA, MOU, Service Agreement, Employment Contract, Lease Agreement, Par
 | ENDEE_INDEX_NAME | legal_docs | Endee index name |
 | ENDEE_BASE_URL | http://localhost:8080/api/v1 | Endee server URL |
 | ENDEE_AUTH_TOKEN | (empty) | Auth token (optional) |
-| OLLAMA_MODEL | mistral | Ollama model name |
+| OLLAMA_MODEL | qwen3.5:4b | Ollama model name |
 | OLLAMA_BASE_URL | http://localhost:11434 | Ollama server URL |
 | EMBEDDING_MODEL | BAAI/bge-large-en-v1.5 | Embedding model |
 

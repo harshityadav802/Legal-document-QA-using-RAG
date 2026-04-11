@@ -125,7 +125,7 @@ with st.sidebar:
     st.markdown('<hr class="divider"/>', unsafe_allow_html=True)
 
     with st.expander("Settings"):
-        ollama_model = st.text_input("Ollama model", value=os.getenv("OLLAMA_MODEL","mistral"))
+        ollama_model = st.text_input("Ollama model", value=os.getenv("OLLAMA_MODEL","qwen3.5:4b"))
         ollama_url = st.text_input("Ollama URL", value=os.getenv("OLLAMA_BASE_URL","http://localhost:11434"))
         index_name = st.text_input("Endee index", value=os.getenv("ENDEE_INDEX_NAME","legal_docs"))
 
