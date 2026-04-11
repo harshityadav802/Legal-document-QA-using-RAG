@@ -121,6 +121,6 @@ frontend/
 | Variable              | Default                      | Description                    |
 |-----------------------|------------------------------|--------------------------------|
 | `VITE_API_BASE_URL`   | *(empty — uses Vite proxy)*  | Full API URL in production     |
-| `VITE_OLLAMA_MODEL`   | `mistral`                    | Default LLM model name         |
+| `VITE_OLLAMA_MODEL`   | `qwen3.5:4b`                 | Default LLM model name         |
 | `VITE_OLLAMA_URL`     | `http://localhost:11434`     | Ollama server URL              |
 | `VITE_INDEX_NAME`     | `legal_docs`                 | Default Endee index            |

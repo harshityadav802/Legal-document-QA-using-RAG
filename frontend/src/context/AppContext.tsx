@@ -40,7 +40,7 @@ const defaultPreferences: UserPreferences = {
   language: 'both',
   theme: 'light',
   numResults: 5,
-  ollamaModel: import.meta.env.VITE_OLLAMA_MODEL ?? 'mistral',
+  ollamaModel: import.meta.env.VITE_OLLAMA_MODEL ?? 'qwen3.5:4b',
   ollamaUrl: import.meta.env.VITE_OLLAMA_URL ?? 'http://localhost:11434',
   indexName: import.meta.env.VITE_INDEX_NAME ?? 'legal_docs',
 }

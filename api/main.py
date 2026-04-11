@@ -48,7 +48,7 @@ def _save_registry(docs: List[Dict]) -> None:
 # ---------------------------------------------------------------------------
 app = FastAPI(
     title="Legal Document QA API",
-    description="REST API for Legal Document QA using RAG (Endee + Mistral)",
+    description="REST API for Legal Document QA using RAG (Endee + Qwen)",
     version="1.0.0",
 )
 
@@ -76,7 +76,7 @@ def _get_pipeline(index_name: Optional[str] = None, k: int = 5):
         _pipeline = QueryPipeline(
             index_name=index_name or os.getenv("ENDEE_INDEX_NAME", "legal_docs"),
             k=k,
-            model=os.getenv("OLLAMA_MODEL", "mistral"),
+            model=os.getenv("OLLAMA_MODEL", "qwen3.5:4b"),
             base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
         )
     return _pipeline
