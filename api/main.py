@@ -1,9 +1,3 @@
-"""
-FastAPI backend for the Legal Document QA system.
-Wraps the existing Python pipeline and exposes REST endpoints
-consumed by the React frontend.
-"""
-
 import json
 import os
 import sys
@@ -16,16 +10,12 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# Make sure the project root is importable
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# ---------------------------------------------------------------------------
-# Document registry – persisted as a JSON file so restarts retain the list.
-# ---------------------------------------------------------------------------
 _REGISTRY_PATH = Path(os.getenv("DOC_REGISTRY_PATH", "data/doc_registry.json"))
 _REGISTRY_PATH.parent.mkdir(parents=True, exist_ok=True)
 
@@ -43,9 +33,6 @@ def _save_registry(docs: List[Dict]) -> None:
     _REGISTRY_PATH.write_text(json.dumps(docs, indent=2))
 
 
-# ---------------------------------------------------------------------------
-# Application
-# ---------------------------------------------------------------------------
 app = FastAPI(
     title="Legal Document QA API",
     description="REST API for Legal Document QA using RAG (Endee + Qwen)",
@@ -62,9 +49,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ---------------------------------------------------------------------------
-# Lazy-loaded query pipeline (initialised on first use)
-# ---------------------------------------------------------------------------
 _pipeline = None
 
 
@@ -82,9 +66,7 @@ def _get_pipeline(index_name: Optional[str] = None, k: int = 5):
     return _pipeline
 
 
-# ---------------------------------------------------------------------------
-# Schemas
-# ---------------------------------------------------------------------------
+
 class QueryRequest(BaseModel):
     question: str
     language: str = "both"
@@ -107,17 +89,13 @@ class DocumentMeta(BaseModel):
     chunk_count: int
 
 
-# ---------------------------------------------------------------------------
-# Endpoints
-# ---------------------------------------------------------------------------
+
 
 
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
 
-
-# --- Document upload --------------------------------------------------------
 
 
 @app.post("/api/documents/upload", response_model=DocumentMeta)
@@ -178,16 +156,12 @@ async def upload_document(
     return entry
 
 
-# --- List documents ---------------------------------------------------------
-
 
 @app.get("/api/documents", response_model=List[DocumentMeta])
 def list_documents():
     """Return all ingested documents."""
     return _load_registry()
 
-
-# --- Delete document --------------------------------------------------------
 
 
 @app.delete("/api/documents/{doc_id}")
@@ -209,8 +183,6 @@ def delete_document(doc_id: str):
 
     return {"deleted": doc_id}
 
-
-# --- Query ------------------------------------------------------------------
 
 
 @app.post("/api/query", response_model=QueryResponse)
@@ -235,7 +207,6 @@ def query_documents(req: QueryRequest):
     )
 
 
-# --- Suggestions ------------------------------------------------------------
 
 _SUGGESTION_TEMPLATES = [
     "What are the key obligations under this agreement?",
