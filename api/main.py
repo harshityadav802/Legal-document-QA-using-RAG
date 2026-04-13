@@ -1,9 +1,3 @@
-"""
-FastAPI backend for the Legal Document QA system.
-Wraps the existing Python pipeline and exposes REST endpoints
-consumed by the React frontend.
-"""
-
 import json
 import os
 import sys
