@@ -1,9 +1,3 @@
-"""Streamlit UI for Legal Document QA — bilingual (Hindi + English).
-
-Run with:
-    streamlit run app/app.py
-"""
-
 import os
 import sys
 import tempfile
