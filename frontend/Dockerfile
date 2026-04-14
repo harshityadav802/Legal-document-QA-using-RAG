@@ -7,13 +7,10 @@ RUN npm ci
 
 COPY . .
 RUN npm run build
-
-# Production stage – serve with nginx and proxy /api to the backend
 FROM nginx:alpine
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# nginx config: serve SPA and proxy /api/* + /health to the backend service
 RUN printf '\
 server {\n\
   listen 80;\n\
