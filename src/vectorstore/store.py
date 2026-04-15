@@ -1,15 +1,21 @@
 import os
+import uuid
 from typing import List, Optional
 
 from endee import Endee, Precision
 from langchain_core.documents import Document
+from endee_model import SparseModel
 
 from src.embeddings.embedder import embed_documents, embed_query
+
+
+_sparse_model = SparseModel(model_name="endee/bm25")
+
 
 _INDEX_NAME: str = os.getenv("ENDEE_INDEX_NAME", "legal_docs")
 _BASE_URL: str = os.getenv("ENDEE_BASE_URL", "http://localhost:8080/api/v1")
 _AUTH_TOKEN: str = os.getenv("ENDEE_AUTH_TOKEN", "")
-_EMBEDDING_DIM: int = int(os.getenv("EMBEDDING_DIM", "1024"))
+_EMBEDDING_DIM: int = int(os.getenv("EMBEDDING_DIM", "768"))
 
 
 def _make_client() -> Endee:
@@ -49,36 +55,80 @@ class EndeeVectorStore:
             self._index = self._get_client().get_index(name=self.index_name)
         return self._index
 
+
     def similarity_search(self, query: str, k: int = 5) -> List[Document]:
         vector = embed_query(query)
-        results = self._get_index().query(vector=vector, top_k=k, ef=128)
+
+        try:
+            # ✅ correct query sparse
+            sparse = next(_sparse_model.query_embed(query))
+
+            results = self._get_index().query(
+                vector=vector,
+                sparse_indices=sparse.indices.tolist(),
+                sparse_values=sparse.values.tolist(),
+                top_k=k,
+                ef=128,
+            )
+
+        except Exception as e:
+            print(f"[store] Hybrid query failed, fallback to dense: {e}")
+
+            results = self._get_index().query(
+                vector=vector,
+                top_k=k,
+                ef=128,
+            )
+
         return _results_to_documents(results)
 
+    # ✅ HYBRID INGESTION (dense + BM25)
     def add_documents(self, documents: List[Document], offset: int = 0) -> None:
         if not documents:
             return
+
         texts = [doc.page_content for doc in documents]
+
+        # ✅ dense embeddings
         vectors = embed_documents(texts)
+
+        # ✅ sparse embeddings (YOUR VERSION SUPPORTS THIS)
+        sparse_embeddings = _sparse_model.embed(texts)
+
         items = []
-        for i, (doc, vec) in enumerate(zip(documents, vectors)):
-            uid = f"{doc.metadata.get('document_name', 'doc')}_{doc.metadata.get('chunk_index', offset + i)}"
+
+        for i, (doc, vec, sparse) in enumerate(zip(documents, vectors, sparse_embeddings)):
+
+            # ✅ unique ID
+            uid = f"{doc.metadata.get('document_name', 'doc')}_{doc.metadata.get('chunk_index', offset + i)}_{uuid.uuid4().hex[:6]}"
+
             item = _doc_to_vector_item(doc, uid)
+
+            # dense
             item["vector"] = vec
+
+            # sparse
+            item["sparse_indices"] = sparse.indices.tolist()
+            item["sparse_values"] = sparse.values.tolist()
+
             items.append(item)
+
         self._get_index().upsert(items)
 
     def describe(self) -> dict:
         return self._get_index().describe()
 
 
+# ✅ BUILD HYBRID INDEX
 def build_vectorstore(
     documents: List[Document],
     index_name: str = _INDEX_NAME,
     dimension: int = _EMBEDDING_DIM,
     recreate: bool = False,
 ) -> EndeeVectorStore:
+
     if not documents:
-        raise ValueError("Cannot build vectorstore from an empty document list.")
+        raise ValueError("Cannot build vectorstore from empty documents.")
 
     client = _make_client()
 
@@ -95,30 +145,34 @@ def build_vectorstore(
             dimension=dimension,
             space_type="cosine",
             precision=Precision.INT8,
-            sparse_model="endee_bm25",
+            sparse_model="endee_bm25",  # ✅ HYBRID ENABLED
         )
-        print(f"[store] Created Endee index '{index_name}' (dim={dimension})")
+        print(f"[store] Created Endee index '{index_name}'")
+
     except Exception as exc:
-        print(f"[store] Index '{index_name}' already exists ({exc}); reusing.")
+        print(f"[store] Index exists ({exc}), reusing.")
 
     store = EndeeVectorStore(index_name=index_name)
     store.add_documents(documents)
-    print(f"[store] Upserted {len(documents)} documents into '{index_name}'")
+
+    print(f"[store] Upserted {len(documents)} documents")
+
     return store
 
 
 def load_vectorstore(index_name: str = _INDEX_NAME) -> EndeeVectorStore:
     client = _make_client()
+
     try:
         index = client.get_index(name=index_name)
         info = index.describe()
         print(f"[store] Connected to index '{index_name}': {info}")
+
     except Exception as exc:
         raise FileNotFoundError(
-            f"Endee index '{index_name}' not found. "
-            "Run the ingest pipeline first.\n"
-            f"Detail: {exc}"
+            f"Index '{index_name}' not found.\nDetail: {exc}"
         ) from exc
+
     return EndeeVectorStore(index_name=index_name)
 
 
@@ -126,9 +180,13 @@ def add_to_vectorstore(
     new_documents: List[Document],
     index_name: str = _INDEX_NAME,
 ) -> EndeeVectorStore:
+
     if not new_documents:
-        raise ValueError("Cannot add an empty document list to the vectorstore.")
+        raise ValueError("Cannot add empty document list.")
+
     store = load_vectorstore(index_name)
     store.add_documents(new_documents)
-    print(f"[store] Added {len(new_documents)} documents to '{index_name}'")
+
+    print(f"[store] Added {len(new_documents)} documents")
+
     return store
