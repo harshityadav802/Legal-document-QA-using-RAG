@@ -3,7 +3,7 @@ from typing import List
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
 
-DEFAULT_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-large-en-v1.5")
+DEFAULT_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
 
 _embedder = None
 
@@ -16,7 +16,7 @@ def get_embedder(model_name: str = DEFAULT_MODEL) -> HuggingFaceEmbeddings:
 
         _embedder = HuggingFaceEmbeddings(
             model_name=model_name,
-            model_kwargs={"device": "cpu"},
+            model_kwargs={"device": "cuda"},
             encode_kwargs={"normalize_embeddings": True},
         )
 
