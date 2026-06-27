@@ -163,7 +163,7 @@ cd Legal-document-QA-using-RAG
 docker compose up -d
 ```
 
-Verify it is running at http://localhost:8080
+
 
 ### Step 4 — Install dependencies
 
@@ -192,7 +192,7 @@ ingest_document("path/to/file.pdf", index_name="legal_docs", append=True)
 python -m streamlit run app/app.py
 ```
 
-Open http://localhost:8501
+
 
 Select Query existing index to query already-ingested documents, or Upload new document to add and query a new file.
 
