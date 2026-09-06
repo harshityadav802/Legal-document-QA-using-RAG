@@ -16,7 +16,7 @@ This system solves that by understanding the semantic content of legal documents
 
 ---
 
-## How Endee is Used
+## How Endee is Database Used
 
 Endee is the core vector database of this project. It stores dense semantic vectors and sparse BM25 vectors for every document chunk, and performs hybrid search in a single server-side call.
 
